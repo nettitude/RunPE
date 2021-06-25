@@ -1,0 +1,103 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Release Build",
+            "type": "shell",
+            "command": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Current\\Bin\\msbuild.exe",
+            "args": [
+                // Ask msbuild to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary",
+                "/p:Configuration=Release",
+                "/p:TargetFramework=v4.0",
+                "RunPE.sln"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "C:\\Windows\\System32\\cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "group": "build",
+            "presentation": {
+                // Reveal the output only if unrecognized errors occur.
+                "reveal": "silent"
+            },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Debug Build",
+            "type": "shell",
+            "command": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Current\\Bin\\msbuild.exe",
+            "args": [
+                // Ask msbuild to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary",
+                "/p:Configuration=Debug",
+                "/p:TargetFramework=v4.0",
+                "RunPE.sln"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "C:\\Windows\\System32\\cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "group": "build",
+            "presentation": {
+                // Reveal the output only if unrecognized errors occur.
+                "reveal": "silent"
+            },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Debug Run",
+            "type": "shell",
+            "command": ".\\RunPE\\bin\\Debug\\RunPE.exe",
+            "args": [
+                "C:\\Windows\\System32\\net.exe",
+                "users"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "C:\\Windows\\System32\\cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "group": "test"
+        },
+        {
+            "label": "Release Run",
+            "type": "shell",
+            "command": ".\\RunPE\\bin\\Release\\RunPE.exe",
+            "args": [
+                "C:\\Windows\\System32\\net.exe",
+                "users"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "C:\\Windows\\System32\\cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "group": "test",
+        }
+    ]
+}
