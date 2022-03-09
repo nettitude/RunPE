@@ -177,5 +177,12 @@ namespace RunPE.Helpers
 
             return pPEB;
         }
+
+        public static byte[] ReadMemory(IntPtr address, int length)
+        {
+            var bytes = new byte[length];
+            Marshal.Copy(address, bytes, 0, length);
+            return bytes;
+        }
     }
 }

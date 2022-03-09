@@ -63,12 +63,6 @@ namespace RunPE
                     return -3;
                 }
 
-                var exitPatcher = new ExitPatcher();
-                if (!exitPatcher.PatchExit())
-                {
-                    return -8;
-                }
-
                 var fileDescriptorRedirector = new FileDescriptorRedirector();
                 if (!fileDescriptorRedirector.RedirectFileDescriptors())
                 {
@@ -85,6 +79,12 @@ namespace RunPE
                 if (!extraAPIPatcher.PatchAPIs((IntPtr)currentBase))
                 {
                     return -9;
+                }
+                
+                var exitPatcher = new ExitPatcher();
+                if (!exitPatcher.PatchExit())
+                {
+                    return -8;
                 }
 
                 fileDescriptorRedirector.StartReadFromPipe();
