@@ -35,17 +35,17 @@ namespace RunPE.Patchers
             }
 
             // Resolve Imports
-            var pIDT = (IntPtr) (currentBase + pe.OptionalHeader64.ImportTable.VirtualAddress);
+            var pIDT = (IntPtr)(currentBase + pe.OptionalHeader64.ImportTable.VirtualAddress);
             var dllIterator = 0;
             while (true)
             {
-                var pDLLImportTableEntry = (IntPtr) (pIDT.ToInt64() + IDT_SINGLE_ENTRY_LENGTH * dllIterator);
+                var pDLLImportTableEntry = (IntPtr)(pIDT.ToInt64() + IDT_SINGLE_ENTRY_LENGTH * dllIterator);
 
-                var iatRVA = Marshal.ReadInt32((IntPtr) (pDLLImportTableEntry.ToInt64() + IDT_IAT_OFFSET));
-                var pIAT = (IntPtr) (currentBase + iatRVA);
+                var iatRVA = Marshal.ReadInt32((IntPtr)(pDLLImportTableEntry.ToInt64() + IDT_IAT_OFFSET));
+                var pIAT = (IntPtr)(currentBase + iatRVA);
 
-                var dllNameRVA = Marshal.ReadInt32((IntPtr) (pDLLImportTableEntry.ToInt64() + IDT_DLL_NAME_OFFSET));
-                var pDLLName = (IntPtr) (currentBase + dllNameRVA);
+                var dllNameRVA = Marshal.ReadInt32((IntPtr)(pDLLImportTableEntry.ToInt64() + IDT_DLL_NAME_OFFSET));
+                var pDLLName = (IntPtr)(currentBase + dllNameRVA);
                 var dllName = Marshal.PtrToStringAnsi(pDLLName);
 
                 if (string.IsNullOrEmpty(dllName))
@@ -60,47 +60,41 @@ namespace RunPE.Patchers
 #if DEBUG
                 Console.WriteLine("[+] Loaded {0}", dllName);
 #endif
+                if (handle == IntPtr.Zero)
+                {
+                    throw new Exception($"Unable to load dependency: {dllName}, Last error: 0x{NativeDeclarations.GetLastError():X}");
+                }
 
                 var pCurrentIATEntry = pIAT;
                 while (true)
                 {
                     // For each DLL iterate over its functions in the IAT and patch the IAT with the real address https://tech-zealots.com/malware-analysis/journey-towards-import-address-table-of-an-executable-file/
-                    try
+                    var pDLLFuncName =
+                        (IntPtr)(currentBase + Marshal.ReadInt32(pCurrentIATEntry) +
+                                 ILT_HINT_LENGTH); // Skip two byte 'hint' http://sandsprite.com/CodeStuff/Understanding_imports.html
+                    var dllFuncName = Marshal.PtrToStringAnsi(pDLLFuncName);
+
+                    if (string.IsNullOrEmpty(dllFuncName))
                     {
-                        var pDLLFuncName =
-                            (IntPtr) (currentBase + Marshal.ReadInt32(pCurrentIATEntry) +
-                                      ILT_HINT_LENGTH); // Skip two byte 'hint' http://sandsprite.com/CodeStuff/Understanding_imports.html
-                        var dllFuncName = Marshal.PtrToStringAnsi(pDLLFuncName);
-
-                        if (string.IsNullOrEmpty(dllFuncName))
-                        {
 #if DEBUG
-                            Console.WriteLine($"[*] End of functions for {dllName}\n");
+                        Console.WriteLine($"[*] End of functions for {dllName}\n");
 #endif
-                            break;
-                        }
-
-                        var pRealFunction = NativeDeclarations.GetProcAddress(handle, dllFuncName);
-                        if (pRealFunction.ToInt64() == 0)
-                        {
-                            Console.WriteLine($"\t[-] ***** Unable to find procedure {dllName}!{dllFuncName} *****");
-                        }
-                        else
-                        {
-#if DEBUG
-                            Console.WriteLine($"[+] Patching {dllName}!{dllFuncName}, to: 0x{pRealFunction.ToInt64():X}");
-#endif
-                            Marshal.WriteInt64(pCurrentIATEntry, pRealFunction.ToInt64());
-                        }
-
-                        pCurrentIATEntry =
-                            (IntPtr) (pCurrentIATEntry.ToInt64() +
-                                      IntPtr.Size); // Shift the current entry to point to the next entry along, as each entry is just a pointer this is one IntPtr.Size
+                        break;
                     }
-                    catch (Exception e)
+
+                    var pRealFunction = NativeDeclarations.GetProcAddress(handle, dllFuncName);
+                    if (pRealFunction == IntPtr.Zero)
                     {
-                        Console.WriteLine($"[-] Error handling imports for {dllName}: {e.Message}");
+                        throw new Exception($"Unable to find procedure {dllName}!{dllFuncName}");
                     }
+#if DEBUG
+                    Console.WriteLine($"[+] Patching {dllName}!{dllFuncName}, to: 0x{pRealFunction.ToInt64():X}");
+#endif
+                    Marshal.WriteInt64(pCurrentIATEntry, pRealFunction.ToInt64());
+
+                    pCurrentIATEntry =
+                        (IntPtr)(pCurrentIATEntry.ToInt64() +
+                                 IntPtr.Size); // Shift the current entry to point to the next entry along, as each entry is just a pointer this is one IntPtr.Size
                 }
 
                 dllIterator++;
