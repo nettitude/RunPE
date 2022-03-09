@@ -42,7 +42,7 @@ namespace RunPE.Patchers
                 7:  33 22 11
                 a:  ff e0                   jmp    rax
              */
-            var patchBytes = new List<byte>() {0x48, 0xB8};
+            var patchBytes = new List<byte>() { 0x48, 0xB8 };
             patchBytes.AddRange(pointerBytes);
 
             patchBytes.Add(0xFF);
@@ -57,7 +57,7 @@ namespace RunPE.Patchers
         private IntPtr WriteNewFuncToMemory(IntPtr baseAddress)
         {
             // Write some code to memory that will return our base address if arg0 is null or revert back to GetModuleAddress if not.
-            var newFuncBytes = new List<byte>() {0x48, 0x85, 0xc9, 0x75, 0x0b};
+            var newFuncBytes = new List<byte> { 0x48, 0x85, 0xc9, 0x75, 0x0b };
 
             var moduleHandle = NativeDeclarations.GetModuleHandle("kernelbase");
             var getModuleHandleFuncAddress = NativeDeclarations.GetProcAddress(moduleHandle, _getModuleHandleFuncName);
@@ -95,7 +95,7 @@ namespace RunPE.Patchers
             ... original replaced opcodes...
             1a:  ff e0                  jmp    rax
             */
-            _newFuncAlloc = NativeDeclarations.VirtualAlloc(IntPtr.Zero, (uint) newFuncBytes.Count,
+            _newFuncAlloc = NativeDeclarations.VirtualAlloc(IntPtr.Zero, (uint)newFuncBytes.Count,
                 NativeDeclarations.MEM_COMMIT, NativeDeclarations.PAGE_READWRITE);
 #if DEBUG
             Console.WriteLine($"[*] New func at: 0x{_newFuncAlloc.ToInt64():X}");
@@ -103,7 +103,7 @@ namespace RunPE.Patchers
             Marshal.Copy(newFuncBytes.ToArray(), 0, _newFuncAlloc, newFuncBytes.Count);
             _newFuncBytesCount = newFuncBytes.Count;
 
-            NativeDeclarations.VirtualProtect(_newFuncAlloc, (UIntPtr) newFuncBytes.Count,
+            NativeDeclarations.VirtualProtect(_newFuncAlloc, (UIntPtr)newFuncBytes.Count,
                 NativeDeclarations.PAGE_EXECUTE_READ, out _);
             return _newFuncAlloc;
         }
@@ -114,16 +114,7 @@ namespace RunPE.Patchers
             Console.WriteLine($"[*] Calculating patch length for kernelbase!{_getModuleHandleFuncName}");
 #endif
             var bytes = Utils.ReadMemory(funcAddress, 40);
-            byte[] needle;
-            if (_getModuleHandleFuncName == "GetModuleHandleA")
-            {
-                needle = new byte[] { 0x48, 0x4d, 0x4c };
-            }
-            else
-            {
-                needle = new byte[] { 0x48, 0xFF, 0x15 };
-            }
-            var searcher = new BoyerMoore(needle);
+            var searcher = new BoyerMoore(new byte[] { 0x48, 0x8d, 0x4c });
             var length = searcher.Search(bytes).FirstOrDefault() + 1;
             if (length == 1)
             {
@@ -149,96 +140,96 @@ namespace RunPE.Patchers
             return true;
         }
     }
-    
+
     public sealed class BoyerMoore
-{
-    readonly byte[] needle;
-    readonly int[] charTable;
-    readonly int[] offsetTable;
-
-    public BoyerMoore(byte[] needle)
     {
-        this.needle = needle;
-        this.charTable = makeByteTable(needle);
-        this.offsetTable = makeOffsetTable(needle);
-    }
+        private readonly byte[] _needle;
+        private readonly int[] _charTable;
+        private readonly int[] _offsetTable;
 
-    public IEnumerable<int> Search(byte[] haystack)
-    {
-        if (needle.Length == 0)
-            yield break;
-
-        for (int i = needle.Length - 1; i < haystack.Length;)
+        public BoyerMoore(byte[] needle)
         {
-            int j;
+            _needle = needle;
+            _charTable = MakeByteTable(needle);
+            _offsetTable = MakeOffsetTable(needle);
+        }
 
-            for (j = needle.Length - 1; needle[j] == haystack[i]; --i, --j)
+        public IEnumerable<int> Search(byte[] haystack)
+        {
+            if (_needle.Length == 0)
+                yield break;
+
+            for (var i = _needle.Length - 1; i < haystack.Length;)
             {
-                if (j != 0)
-                    continue;
+                int j;
 
-                yield return i;
-                i += needle.Length - 1;
-                break;
+                for (j = _needle.Length - 1; _needle[j] == haystack[i]; --i, --j)
+                {
+                    if (j != 0)
+                        continue;
+
+                    yield return i;
+                    i += _needle.Length - 1;
+                    break;
+                }
+
+                i += Math.Max(_offsetTable[_needle.Length - 1 - j], _charTable[haystack[i]]);
+            }
+        }
+
+        private static int[] MakeByteTable(IList<byte> needle)
+        {
+            const int alphabetSize = 256;
+            var table = new int[alphabetSize];
+
+            for (var i = 0; i < table.Length; ++i)
+                table[i] = needle.Count;
+
+            for (var i = 0; i < needle.Count - 1; ++i)
+                table[needle[i]] = needle.Count - 1 - i;
+
+            return table;
+        }
+
+        private static int[] MakeOffsetTable(IList<byte> needle)
+        {
+            var table = new int[needle.Count];
+            var lastPrefixPosition = needle.Count;
+
+            for (var i = needle.Count - 1; i >= 0; --i)
+            {
+                if (IsPrefix(needle, i + 1))
+                    lastPrefixPosition = i + 1;
+
+                table[needle.Count - 1 - i] = lastPrefixPosition - i + needle.Count - 1;
             }
 
-            i += Math.Max(offsetTable[needle.Length - 1 - j], charTable[haystack[i]]);
+            for (var i = 0; i < needle.Count - 1; ++i)
+            {
+                var suffixLength = SuffixLength(needle, i);
+                table[suffixLength] = needle.Count - 1 - i + suffixLength;
+            }
+
+            return table;
         }
-    }
 
-    static int[] makeByteTable(byte[] needle)
-    {
-        const int ALPHABET_SIZE = 256;
-        int[] table = new int[ALPHABET_SIZE];
-
-        for (int i = 0; i < table.Length; ++i)
-            table[i] = needle.Length;
-
-        for (int i = 0; i < needle.Length - 1; ++i)
-            table[needle[i]] = needle.Length - 1 - i;
-
-        return table;
-    }
-
-    static int[] makeOffsetTable(byte[] needle)
-    {
-        int[] table = new int[needle.Length];
-        int lastPrefixPosition = needle.Length;
-
-        for (int i = needle.Length - 1; i >= 0; --i)
+        private static bool IsPrefix(IList<byte> needle, int p)
         {
-            if (isPrefix(needle, i + 1))
-                lastPrefixPosition = i + 1;
+            for (int i = p, j = 0; i < needle.Count; ++i, ++j)
+                if (needle[i] != needle[j])
+                    return false;
 
-            table[needle.Length - 1 - i] = lastPrefixPosition - i + needle.Length - 1;
+            return true;
         }
 
-        for (int i = 0; i < needle.Length - 1; ++i)
+        private static int SuffixLength(IList<byte> needle, int p)
         {
-            int slen = suffixLength(needle, i);
-            table[slen] = needle.Length - 1 - i + slen;
+            var len = 0;
+
+            for (int i = p, j = needle.Count - 1; i >= 0 && needle[i] == needle[j]; --i, --j)
+                ++len;
+
+            return len;
         }
-
-        return table;
     }
-
-    static bool isPrefix(byte[] needle, int p)
-    {
-        for (int i = p, j = 0; i < needle.Length; ++i, ++j)
-            if (needle[i] != needle[j])
-                return false;
-
-        return true;
-    }
-
-    static int suffixLength(byte[] needle, int p)
-    {
-        int len = 0;
-
-        for (int i = p, j = needle.Length - 1; i >= 0 && needle[i] == needle[j]; --i, --j)
-            ++len;
-
-        return len;
-    }
-}
 }
