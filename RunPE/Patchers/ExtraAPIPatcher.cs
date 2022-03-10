@@ -23,16 +23,19 @@ namespace RunPE.Patchers
             Console.WriteLine(
                 $"\n[*] Patching kernelbase!{_getModuleHandleFuncName} to return base address of loaded PE if called with NULL");
 #endif
-            WriteNewFuncToMemory(baseAddress);
+            var moduleHandle = NativeDeclarations.GetModuleHandle("kernelbase");
+            var getModuleHandleFuncAddress = NativeDeclarations.GetProcAddress(moduleHandle, _getModuleHandleFuncName);
+            var patchLength = CalculatePatchLength(getModuleHandleFuncAddress);
+            WriteNewFuncToMemory(baseAddress, getModuleHandleFuncAddress, patchLength);
 
-            if (PatchAPIToJmpToNewFunc()) return true;
+            if (PatchAPIToJmpToNewFunc(patchLength)) return true;
 #if DEBUG
             Console.WriteLine($"[-] Unable to patch kernelbase!{_getModuleHandleFuncName}");
 #endif
             return false;
         }
 
-        private bool PatchAPIToJmpToNewFunc()
+        private bool PatchAPIToJmpToNewFunc(int patchLength)
         {
             // Patch the API to jump to out new func code
             var pointerBytes = BitConverter.GetBytes(_newFuncAlloc.ToInt64());
@@ -42,11 +45,19 @@ namespace RunPE.Patchers
                 7:  33 22 11
                 a:  ff e0                   jmp    rax
              */
-            var patchBytes = new List<byte>() { 0x48, 0xB8 };
+            var patchBytes = new List<byte> { 0x48, 0xB8 };
             patchBytes.AddRange(pointerBytes);
 
             patchBytes.Add(0xFF);
             patchBytes.Add(0xE0);
+
+            if (patchBytes.Count > patchLength)
+                throw new Exception($"Patch length ({patchBytes.Count})is greater than calculated space available ({patchLength})");
+
+            if (patchBytes.Count < patchLength)
+            {
+                patchBytes.AddRange(Enumerable.Range(0, patchLength - patchBytes.Count).Select(x => (byte)0x90));
+            }
 
             _originalGetModuleHandleBytes =
                 Utils.PatchFunction("kernelbase", _getModuleHandleFuncName, patchBytes.ToArray());
@@ -54,16 +65,15 @@ namespace RunPE.Patchers
             return _originalGetModuleHandleBytes != null;
         }
 
-        private IntPtr WriteNewFuncToMemory(IntPtr baseAddress)
+        private IntPtr WriteNewFuncToMemory(IntPtr baseAddress, IntPtr getModuleHandleFuncAddress, int patchLength)
         {
             // Write some code to memory that will return our base address if arg0 is null or revert back to GetModuleAddress if not.
-            var newFuncBytes = new List<byte> { 0x48, 0x85, 0xc9, 0x75, 0x0b };
-
-            var moduleHandle = NativeDeclarations.GetModuleHandle("kernelbase");
-            var getModuleHandleFuncAddress = NativeDeclarations.GetProcAddress(moduleHandle, _getModuleHandleFuncName);
-
-            newFuncBytes.Add(0x48);
-            newFuncBytes.Add(0xB8);
+            var newFuncBytes = new List<byte>
+            {
+                0x48, 0x85, 0xc9, 0x75, 0x0b,
+                0x48,
+                0xB8
+            };
 
             var baseAddressPointerBytes = BitConverter.GetBytes(baseAddress.ToInt64());
 
@@ -73,7 +83,7 @@ namespace RunPE.Patchers
             newFuncBytes.Add(0x48);
             newFuncBytes.Add(0xB8);
 
-            var patchLength = CalculatePatchLength(getModuleHandleFuncAddress);
+            
             var pointerBytes = BitConverter.GetBytes(getModuleHandleFuncAddress.ToInt64() + patchLength);
 
             newFuncBytes.AddRange(pointerBytes);
@@ -115,8 +125,8 @@ namespace RunPE.Patchers
 #endif
             var bytes = Utils.ReadMemory(funcAddress, 40);
             var searcher = new BoyerMoore(new byte[] { 0x48, 0x8d, 0x4c });
-            var length = searcher.Search(bytes).FirstOrDefault() + 1;
-            if (length == 1)
+            var length = searcher.Search(bytes).FirstOrDefault();
+            if (length == 0)
             {
                 throw new Exception("Unable to calculate patch length, the function may have changed to a point it is is no longer recognised and this code needs to be updated");
             }

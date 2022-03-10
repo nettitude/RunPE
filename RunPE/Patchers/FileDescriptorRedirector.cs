@@ -162,21 +162,29 @@ namespace RunPE.Patchers
 
         private static void CloseDescriptors(FileDescriptorPair stdoutDescriptors)
         {
-            // Need to close write before read else it hangs as could still be writing
-            if (stdoutDescriptors.Write != IntPtr.Zero)
+            try
             {
-                NativeDeclarations.CloseHandle(stdoutDescriptors.Write);
+                // Need to close write before read else it hangs as could still be writing
+                if (stdoutDescriptors.Write != IntPtr.Zero)
+                {
+                    NativeDeclarations.CloseHandle(stdoutDescriptors.Write);
 #if DEBUG
                 Console.WriteLine("[+] CloseHandle write");
 #endif
-            }
+                }
 
-            if (stdoutDescriptors.Read != IntPtr.Zero)
-            {
-                NativeDeclarations.CloseHandle(stdoutDescriptors.Read);
+                if (stdoutDescriptors.Read != IntPtr.Zero)
+                {
+                    NativeDeclarations.CloseHandle(stdoutDescriptors.Read);
 #if DEBUG
                 Console.WriteLine("[+] CloseHandle read");
 #endif
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"[-] Error closing handles: {e}");
+                Console.WriteLine($"Last error: 0x{NativeDeclarations.GetLastError():X}");
             }
         }
 

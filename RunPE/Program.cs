@@ -25,11 +25,6 @@ namespace RunPE
 
             try
             {
-#if LOG_TO_FILE
-                var fileLogger = new FileLogger();
-                fileLogger.RedirectStdOutToFile();
-#endif
-
                 if (IntPtr.Size != 8)
                 {
                     Console.WriteLine("\n[-] Process is not 64-bit, this version of run-exe won't work !\n");
@@ -104,7 +99,6 @@ namespace RunPE
                 extraAPIPatcher.RevertAPIs();
                 extraEnvironmentalPatcher.RevertExtraPatches();
                 fileDescriptorRedirector.ResetFileDescriptors();
-                fileDescriptorRedirector.ClosePipes();
                 argumentHandler.ResetArgs();
                 peMapper.ClearPE();
                 importResolver.ResetImports();
@@ -112,9 +106,6 @@ namespace RunPE
                 // Print the output
                 var output = fileDescriptorRedirector.ReadDescriptorOutput();
 
-#if LOG_TO_FILE
-               fileLogger.ResetFileLoggingToStdOut();
-#endif
 #if DEBUG
                 Console.WriteLine("\n------------------------ EXE OUTPUT -------------------------\n");
 #endif
@@ -132,9 +123,6 @@ namespace RunPE
             catch (Exception e)
             {
                 Console.WriteLine($"[-] Error running RunPE: {e}");
-#if LOG_TO_FILE
-                fileLogger.ResetFileLoggingToStdOut();
-#endif
                 return -6;
             }
         }

@@ -37,7 +37,7 @@ namespace RunPE.Patchers
         private IntPtr _pNewString;
         private short _originalLength;
         private short _originalMaxLength;
-        private string _commandLineFunc = null;
+        private string _commandLineFunc;
         private Encoding _encoding;
 
         public bool UpdateArgs(string filename, string[] args)
@@ -52,9 +52,10 @@ namespace RunPE.Patchers
                 out _ppImageString, out _pOriginalImageString, out _pLength, out _originalLength, out _pMaxLength,
                 out _originalMaxLength);
 
+
+#if DEBUG
             var commandLineString = Marshal.PtrToStringUni(_pOriginalCommandLineString);
             var imageString = Marshal.PtrToStringUni(_pOriginalImageString);
-#if DEBUG
             Console.WriteLine($"[*] Current args read from PEB: {commandLineString}");
             Console.WriteLine($"[*] Current image read from PEB: {imageString}");
 #endif
@@ -166,7 +167,7 @@ namespace RunPE.Patchers
             Console.WriteLine($"[*] New String Address: 0x{_pNewString.ToInt64():X}");
 #endif
             // Create the patch bytes that provide the new string pointer
-            var patchBytes = new List<byte>() {0x48, 0xB8}; // TODO architecture
+            var patchBytes = new List<byte> {0x48, 0xB8}; // TODO architecture
             var pointerBytes = BitConverter.GetBytes(_pNewString.ToInt64());
 
             patchBytes.AddRange(pointerBytes);

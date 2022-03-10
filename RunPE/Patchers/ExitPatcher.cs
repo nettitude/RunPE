@@ -19,7 +19,7 @@ namespace RunPE.Patchers
 #if DEBUG
             Console.WriteLine($"[*] kernelbase!ExitThread API function at: 0x{pExitThreadFunc.ToInt64():X}");
 #endif
-            var exitThreadPatchBytes = new List<byte>() {0x48, 0xC7, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x48, 0xB8};
+            var exitThreadPatchBytes = new List<byte> {0x48, 0xC7, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x48, 0xB8};
             /*
                 mov rcx, 0x0 #takes first arg
                 mov rax, <ExitThread> # 
