@@ -90,6 +90,7 @@ namespace RunPE.Patchers
 
             var originalInstructions = new byte[patchLength];
             Marshal.Copy(getModuleHandleFuncAddress, originalInstructions, 0, patchLength);
+            // TODO how to fix up relative jmps in the trampoline
             newFuncBytes.AddRange(originalInstructions);
 
             newFuncBytes.Add(0xFF);
