@@ -1,6 +1,6 @@
 # RunPE
 
-C# Reflective loader for unmanaged binaries.
+C# reflective loader for unmanaged binaries.
 
 ## Usage
 
@@ -20,4 +20,3 @@ Edit the compilation symbols to quickly adjust the program flow:
 
 * DEBUG (automatically added in Debug release mode) -> Very verbose logging
 * BREAK_TO_ATTACH -> Print "Press Enter to continue..." and await input so can attach debugger
-* LOG_TO_FILE -> Log the RunPE output to a file in C:\Users\Public instead of to the console
