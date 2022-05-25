@@ -129,7 +129,10 @@ namespace RunPE.Patchers
             var length = searcher.Search(bytes).FirstOrDefault();
             if (length == 0)
             {
-                throw new Exception("Unable to calculate patch length, the function may have changed to a point it is is no longer recognised and this code needs to be updated");
+                searcher = new BoyerMoore(new byte[] { 0x4c, 0x8d, 0x44 });
+                length = searcher.Search(bytes).FirstOrDefault();
+                if(length == 0)
+                    throw new Exception("Unable to calculate patch length, the function may have changed to a point it is is no longer recognised and this code needs to be updated");
             }
 #if DEBUG
             Console.WriteLine($"[*] Patch length calculated to be: {length}");
