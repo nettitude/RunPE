@@ -20,3 +20,15 @@ Edit the compilation symbols to quickly adjust the program flow:
 
 * DEBUG (automatically added in Debug release mode) -> Very verbose logging
 * BREAK_TO_ATTACH -> Print "Press Enter to continue..." and await input so can attach debugger
+
+
+## PE Compilation Limitations
+
+Executables launched by RunPE must be statically linked in order for StdOut and 
+StdErr redirection to work correctly. To change this setting in Visual Studio:
+
+* Open the project's properties
+* Navigate to `Configuration Properties` -> `C/C++` -> `Code Generation`
+* Change the value of `Runtime Library` to either `Multi-threaded (/MT)`
+  or `Multi-threaded Debug (/MTd)`
+* Recompile the project
