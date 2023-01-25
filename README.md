@@ -32,3 +32,36 @@ StdErr redirection to work correctly. To change this setting in Visual Studio:
 * Change the value of `Runtime Library` to either `Multi-threaded (/MT)`
   or `Multi-threaded Debug (/MTd)`
 * Recompile the project
+
+## Argument Limitiations
+
+Executables that do not use the Window's API [CommandLineToArgvW](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw) in order to parse arguments will not be passed appropriately through RunPE.
+When running PE's that the operator has control over compilation, it is suggested to add support for parsing arguments using this API.
+
+For example, the following code will work when the program is run independently, but will fail when passed to RunPE since `"foo"` has been shifted to `argv[2]`:
+
+```c
+if (argv[1] == "foo") {
+    bar();
+}
+```
+
+Example for refactoring `argv` to `CommandLineArgvW`:
+
+```c
+#include <stdio.h>
+#include <Windows.h>
+
+int main(int argc, char* argv[]) {
+	int nArgs;
+	LPWSTR *szArglist;
+	
+	szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+
+	for (int i = 0; i < nArgs; i++) {
+		printf("argv[%d]: %ws\n", i, szArglist[i]);
+	}
+
+	return 0;
+}
+```
