@@ -28,7 +28,10 @@ namespace RunPE.Patchers
             {
                 var y = NativeDeclarations.VirtualAlloc((IntPtr) (currentBase + _pe.ImageSectionHeaders[i].VirtualAddress),
                     _pe.ImageSectionHeaders[i].SizeOfRawData, NativeDeclarations.MEM_COMMIT, NativeDeclarations.PAGE_READWRITE);
-                Marshal.Copy(_pe.RawBytes, (int) _pe.ImageSectionHeaders[i].PointerToRawData, y, (int) _pe.ImageSectionHeaders[i].SizeOfRawData);
+                if (_pe.ImageSectionHeaders[i].SizeOfRawData > 0)
+                {
+                    Marshal.Copy(_pe.RawBytes, (int)_pe.ImageSectionHeaders[i].PointerToRawData, y, (int)_pe.ImageSectionHeaders[i].SizeOfRawData);
+                }
             }
 
             // Perform Base Relocation
